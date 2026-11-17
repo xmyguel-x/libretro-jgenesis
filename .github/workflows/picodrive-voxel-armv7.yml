@@ -1,0 +1,47 @@
+name: Build PicoDrive Voxel Android ARMv7
+
+on:
+  push:
+    branches: [feature/picodrive-voxel]
+    paths:
+      - 'picodrive_voxel/**'
+      - '.github/workflows/picodrive-voxel-armv7.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-armv7:
+    name: Compile Android ARMv7 (32-bit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compile wrapper with Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_NDK_LATEST_HOME:?Android NDK was not found on the runner}"
+          "${ANDROID_NDK_LATEST_HOME}/ndk-build" \
+            APP_ABI=armeabi-v7a \
+            NDK_PROJECT_PATH=picodrive_voxel \
+            APP_BUILD_SCRIPT=picodrive_voxel/jni/Android.mk \
+            NDK_APPLICATION_MK=picodrive_voxel/jni/Application.mk
+
+          mkdir -p picodrive_voxel/dist
+          cp picodrive_voxel/libs/armeabi-v7a/libpicodrive_voxel.so picodrive_voxel/dist/picodrive_voxel_libretro_android.so
+
+          file picodrive_voxel/dist/picodrive_voxel_libretro_android.so
+          readelf -h picodrive_voxel/dist/picodrive_voxel_libretro_android.so | grep -E 'Class:|Machine:'
+          readelf -h picodrive_voxel/dist/picodrive_voxel_libretro_android.so | grep -q 'ELF32'
+          readelf -h picodrive_voxel/dist/picodrive_voxel_libretro_android.so | grep -q 'ARM'
+
+      - name: Upload ARMv7 wrapper
+        uses: actions/upload-artifact@v4
+        with:
+          name: picodrive_voxel_android_armv7_32bit
+          path: picodrive_voxel/dist/picodrive_voxel_libretro_android.so
+          if-no-files-found: error
+          retention-days: 14
