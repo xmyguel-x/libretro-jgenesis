@@ -65,38 +65,80 @@ static int g_infmt = 0; /* Libretro default: 0RGB1555; atualizado se o core soli
 
 static bool load_inner(void)
 {
-    static const char *names[] = { "picodrive_libretro_android.so", "picodrive_inner_libretro_android.so", "picodrive_libretro.so", NULL };
+    static const char *names[] = {
+        "picodrive_libretro_android.so",
+        "picodrive_inner_libretro_android.so",
+        "picodrive_libretro.so",
+        "picodrive_libretro_android_armv7.so",
+        NULL
+    };
     char dir[1024] = "", path[1100];
     Dl_info di;
-    int i, miss = 0;
-    if (g_lib) return g_ok;
+    int i;
+
+    if (g_ok) return true;
+
+    /* Se uma tentativa anterior abriu uma biblioteca incompleta, libera-a
+       antes de testar os outros nomes. */
+    if (g_lib) {
+        dlclose(g_lib);
+        g_lib = NULL;
+    }
+    memset(&in, 0, sizeof in);
+
     if (dladdr((void *)&load_inner, &di) && di.dli_fname) {
         const char *s = strrchr(di.dli_fname, '/');
-        if (s) { size_t n = (size_t)(s - di.dli_fname + 1); if (n < sizeof dir) { memcpy(dir, di.dli_fname, n); dir[n] = 0; } }
+        if (s) {
+            size_t n = (size_t)(s - di.dli_fname + 1);
+            if (n < sizeof dir) { memcpy(dir, di.dli_fname, n); dir[n] = 0; }
+        }
     }
-    for (i = 0; names[i] && !g_lib; i++) {
+
+    fprintf(stderr, "[PicoDrive Voxel] Pasta do wrapper: %s\n", dir[0] ? dir : "(indisponivel)");
+    for (i = 0; names[i]; i++) {
+        const char *err;
+        int miss = 0;
         snprintf(path, sizeof path, "%s%s", dir, names[i]);
+        dlerror();
         g_lib = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-    }
-    if (!g_lib) return false;
+        if (!g_lib) {
+            err = dlerror();
+            fprintf(stderr, "[PicoDrive Voxel] Falha ao abrir %s: %s\n",
+                    path, err ? err : "erro desconhecido");
+            continue;
+        }
+
 #define L(n) do { *(void **)&in.n = dlsym(g_lib, "retro_" #n); } while (0)
-#define REQUIRED(n) do { L(n); if (!in.n) miss++; } while (0)
-    /* API essencial: sem estes símbolos não existe core Libretro utilizável. */
-    REQUIRED(init); REQUIRED(deinit); REQUIRED(api_version);
-    REQUIRED(get_system_info); REQUIRED(get_system_av_info);
-    REQUIRED(set_environment); REQUIRED(set_video_refresh);
-    REQUIRED(set_audio_sample); REQUIRED(set_audio_sample_batch);
-    REQUIRED(set_input_poll); REQUIRED(set_input_state);
-    REQUIRED(reset); REQUIRED(run); REQUIRED(load_game); REQUIRED(unload_game);
-    /* API opcional em versões/configurações diferentes do core. */
-    L(set_controller_port_device);
-    L(serialize_size); L(serialize); L(unserialize);
-    L(cheat_reset); L(cheat_set); L(load_game_special);
-    L(get_region); L(get_memory_data); L(get_memory_size);
+#define REQUIRED(n) do { L(n); if (!in.n) { miss++; fprintf(stderr, "[PicoDrive Voxel] Simbolo ausente: retro_%s\n", #n); } } while (0)
+        REQUIRED(init); REQUIRED(deinit); REQUIRED(api_version);
+        REQUIRED(get_system_info); REQUIRED(get_system_av_info);
+        REQUIRED(set_environment); REQUIRED(set_video_refresh);
+        REQUIRED(set_audio_sample); REQUIRED(set_audio_sample_batch);
+        REQUIRED(set_input_poll); REQUIRED(set_input_state);
+        REQUIRED(reset); REQUIRED(run); REQUIRED(load_game); REQUIRED(unload_game);
+        L(set_controller_port_device);
+        L(serialize_size); L(serialize); L(unserialize);
+        L(cheat_reset); L(cheat_set); L(load_game_special);
+        L(get_region); L(get_memory_data); L(get_memory_size);
 #undef REQUIRED
 #undef L
-    g_ok = (miss == 0);
-    return g_ok;
+
+        if (miss == 0) {
+            g_ok = true;
+            fprintf(stderr, "[PicoDrive Voxel] Core interno carregado: %s\n", path);
+            return true;
+        }
+
+        fprintf(stderr, "[PicoDrive Voxel] %s nao e um core compativel (%d simbolos ausentes).\n",
+                path, miss);
+        dlclose(g_lib);
+        g_lib = NULL;
+        memset(&in, 0, sizeof in);
+    }
+
+    g_ok = false;
+    fprintf(stderr, "[PicoDrive Voxel] Nao foi possivel carregar o PicoDrive interno.\n");
+    return false;
 }
 
 /* ---------- frame capturado do jogo ---------- */
