@@ -420,15 +420,15 @@ API void retro_run(void)
     if (g_video) g_video(fb, OUT_W, OUT_H, OUT_W * 4);
 }
 
-API bool retro_load_game_special(unsigned t, const struct retro_game_info *g, size_t n) { return g_ok && in.load_game_special(t, g, n); }
+API bool retro_load_game_special(unsigned t, const struct retro_game_info *g, size_t n) { return g_ok && in.load_game_special && in.load_game_special(t, g, n); }
 API void retro_unload_game(void) { if (g_ok) in.unload_game(); }
 API void retro_reset(void) { if (g_ok) in.reset(); }
-API void retro_set_controller_port_device(unsigned p, unsigned d) { if (g_ok) in.set_controller_port_device(p, d); }
-API size_t retro_serialize_size(void) { return g_ok ? in.serialize_size() : 0; }
-API bool retro_serialize(void *d, size_t n) { return g_ok && in.serialize(d, n); }
-API bool retro_unserialize(const void *d, size_t n) { return g_ok && in.unserialize(d, n); }
-API void retro_cheat_reset(void) { if (g_ok) in.cheat_reset(); }
-API void retro_cheat_set(unsigned i, bool e, const char *c) { if (g_ok) in.cheat_set(i, e, c); }
-API unsigned retro_get_region(void) { return g_ok ? in.get_region() : 0; }
-API void *retro_get_memory_data(unsigned id) { return g_ok ? in.get_memory_data(id) : NULL; }
-API size_t retro_get_memory_size(unsigned id) { return g_ok ? in.get_memory_size(id) : 0; }
+API void retro_set_controller_port_device(unsigned p, unsigned d) { if (g_ok && in.set_controller_port_device) in.set_controller_port_device(p, d); }
+API size_t retro_serialize_size(void) { return g_ok && in.serialize_size ? in.serialize_size() : 0; }
+API bool retro_serialize(void *d, size_t n) { return g_ok && in.serialize && in.serialize(d, n); }
+API bool retro_unserialize(const void *d, size_t n) { return g_ok && in.unserialize && in.unserialize(d, n); }
+API void retro_cheat_reset(void) { if (g_ok && in.cheat_reset) in.cheat_reset(); }
+API void retro_cheat_set(unsigned i, bool e, const char *c) { if (g_ok && in.cheat_set) in.cheat_set(i, e, c); }
+API unsigned retro_get_region(void) { return g_ok && in.get_region ? in.get_region() : 0; }
+API void *retro_get_memory_data(unsigned id) { return g_ok && in.get_memory_data ? in.get_memory_data(id) : NULL; }
+API size_t retro_get_memory_size(unsigned id) { return g_ok && in.get_memory_size ? in.get_memory_size(id) : 0; }
