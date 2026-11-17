@@ -61,7 +61,7 @@ static struct {
 } in;
 
 static env_t g_env; static video_t g_video; static state_t g_state;
-static int g_infmt = 2; /* 0=0RGB1555 1=XRGB8888 2=RGB565 */
+static int g_infmt = 0; /* Libretro default: 0RGB1555; atualizado se o core solicitar outro formato. */
 
 static bool load_inner(void)
 {
