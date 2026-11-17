@@ -1,0 +1,49 @@
+name: Build Retro8 Voxel Android ARMv7
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'retro8_voxel.c'
+      - 'jni/**'
+      - '.github/workflows/retro8-voxel-armv7.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-armv7:
+    name: Compile Android ARMv7 (32-bit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compile with Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_NDK_LATEST_HOME:?Android NDK was not found on the runner}"
+          "${ANDROID_NDK_LATEST_HOME}/ndk-build" \
+            APP_ABI=armeabi-v7a \
+            NDK_PROJECT_PATH=. \
+            APP_BUILD_SCRIPT=jni/Android.mk \
+            NDK_APPLICATION_MK=jni/Application.mk
+
+          mkdir -p jgenesis
+          cp libs/armeabi-v7a/libretro.so jgenesis/retro8_voxel_libretro_android.so
+
+          echo "=== Binary information ==="
+          file jgenesis/retro8_voxel_libretro_android.so
+          readelf -h jgenesis/retro8_voxel_libretro_android.so | grep -E 'Class:|Machine:'
+          readelf -h jgenesis/retro8_voxel_libretro_android.so | grep -q 'ELF32'
+          readelf -h jgenesis/retro8_voxel_libretro_android.so | grep -q 'ARM'
+
+      - name: Upload ARMv7 core
+        uses: actions/upload-artifact@v4
+        with:
+          name: retro8_voxel_android_armv7_32bit
+          path: jgenesis/retro8_voxel_libretro_android.so
+          if-no-files-found: error
+          retention-days: 14
