@@ -79,12 +79,21 @@ static bool load_inner(void)
         g_lib = dlopen(path, RTLD_NOW | RTLD_LOCAL);
     }
     if (!g_lib) return false;
-#define L(n) do { *(void **)&in.n = dlsym(g_lib, "retro_" #n); if (!in.n) miss++; } while (0)
-    L(init); L(deinit); L(api_version); L(get_system_info); L(get_system_av_info);
-    L(set_environment); L(set_video_refresh); L(set_audio_sample); L(set_audio_sample_batch);
-    L(set_input_poll); L(set_input_state); L(set_controller_port_device); L(reset); L(run);
-    L(serialize_size); L(serialize); L(unserialize); L(cheat_reset); L(cheat_set);
-    L(load_game); L(load_game_special); L(unload_game); L(get_region); L(get_memory_data); L(get_memory_size);
+#define L(n) do { *(void **)&in.n = dlsym(g_lib, "retro_" #n); } while (0)
+#define REQUIRED(n) do { L(n); if (!in.n) miss++; } while (0)
+    /* API essencial: sem estes símbolos não existe core Libretro utilizável. */
+    REQUIRED(init); REQUIRED(deinit); REQUIRED(api_version);
+    REQUIRED(get_system_info); REQUIRED(get_system_av_info);
+    REQUIRED(set_environment); REQUIRED(set_video_refresh);
+    REQUIRED(set_audio_sample); REQUIRED(set_audio_sample_batch);
+    REQUIRED(set_input_poll); REQUIRED(set_input_state);
+    REQUIRED(reset); REQUIRED(run); REQUIRED(load_game); REQUIRED(unload_game);
+    /* API opcional em versões/configurações diferentes do core. */
+    L(set_controller_port_device);
+    L(serialize_size); L(serialize); L(unserialize);
+    L(cheat_reset); L(cheat_set); L(load_game_special);
+    L(get_region); L(get_memory_data); L(get_memory_size);
+#undef REQUIRED
 #undef L
     g_ok = (miss == 0);
     return g_ok;
